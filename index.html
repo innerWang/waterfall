@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>瀑布流新闻站</title>
+	<script src="//cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
+	<style>
+		* {
+			padding: 0;
+			margin: 0;
+			box-sizing: border-box;
+		}
+
+		ul {
+			list-style: none;
+		}
+
+		a {
+			text-decoration: none;
+			display: block;
+		}
+
+		.clearfix:after {
+			content: '';
+			display: block;
+			clear: both;
+		}
+
+		.ct {
+			position: relative;
+			padding: 10px;
+			margin: 0 auto;
+		}
+
+		.item {
+			box-shadow: 2px 2px 2px #E8E8E8, -2px -2px 2px #E8E8E8;
+			position: absolute;
+			width: 200px;
+			padding: 10px;
+			margin: 10px;
+			background: #fff;
+			transition: all .8s;
+		}
+
+		.item img {
+			width: 180px;
+		/*	为了去掉a标签给英文字母尾巴留的4px空间*/
+			vertical-align: bottom;
+		}
+
+		.item h4 {
+			border-bottom: 1px solid #ccc;
+			padding: 5px 0;
+		}
+
+		.item p {
+			padding-top: 10px;
+			color: #999;
+			font-size: 10px;
+		}
+
+		.load {
+			color: #f1f1f1;
+		}
+
+		.hide {
+			display: none;
+		}
+	</style>
+</head>
+<body>
+	<div class="ct-waterfall">
+		<ul id="pic-ct" class="ct clearfix">
+			<!-- <li class="item">
+				<a href="#" class="link">
+					<img src="http://n2.sinaimg.cn/news/1_img/upload/8de453bf/101/w1500h1001/20181210/rYkv-hphsupy6547291.jpg" alt="">
+				</a>
+				<h4 class="title">细菌战幸存者</h4>
+				<p class="desp">
+					1941年11月4日，侵华日军731部队在常德投下36公斤携带鼠疫细菌的跳蚤，引发了长达两年，流传四年的细菌战，数万人染病，7643人丧生。77年过去了，幸存者及遗属仍在坚持控诉，要得是日本政府一个真正的道歉，虽然只剩下18人。
+				</p>
+			</li> -->
+			<!-- 用于计算 item 宽度和列数，但不展示出来-->
+			<li class="item hide"></li>
+		</ul>
+		<div class="load">我是看不见的</div>
+	</div>
+
+
+	<script>
+		/*1. 获取数据
+		2. 把数据拼装成dom放到页面
+		3. 使用瀑布流去摆放dom位置*/
+
+		var perPageCount = 10
+		var curPage = 1
+		var $target = $('.load')
+		var isDataArrived = true
+	//	var isRePainting = false
+
+		var itemWidth = $('.item').outerWidth(true)
+		var columnNum = Math.floor($('#pic-ct').width() / itemWidth)
+		//console.log('共有'+columnNum+'列')
+		var columnHeight = []
+		for(var i=0;i<columnNum;i++){
+			columnHeight.push(0)
+		}
+
+		
+		showImage()
+
+		function showImage(){
+			if(!isDataArrived) return;
+			getData(function(items){
+				console.log(items)
+				isDataArrived = true
+				render(items)
+			})
+			isDataArrived = false
+		}
+
+		$(window).on('scroll',function(){
+			if(isShow($target)){
+				showImage()
+			}
+		}) 
+
+
+		$(window).on('resize',function(){
+		//	if(isRePainting) return
+
+			var _this = this
+		  var columnNumOld = columnNum
+		//	isRePainting = true
+			columnNum = Math.floor($('#pic-ct').width() / itemWidth)
+			if(columnNum == columnNumOld) return 
+			console.log('resize: 共有'+columnNum+'列')
+			columnHeight = []
+			for(var i=0;i<columnNum;i++){
+				columnHeight.push(0)
+			}
+			$('.item').each(function(){
+				_this.waterfallPlace($(this))
+			})
+	//		isRePainting = false
+		})
+
+		function isShow($node){
+			return $node.offset().top <= $(window).height() +$(window).scrollTop()
+		}
+
+		/*
+		这里使用了新浪新闻的 jsonp 接口
+		如： http://platform.sina.com.cn/slide/album_tech?jsoncallback=func&app_key=1271687855&num=3&page=4
+		 */
+		function getData(callback){
+			$.ajax({
+				url: 'http://platform.sina.com.cn/slide/album_tech',
+				dataType: 'jsonp',
+				jsonp: 'jsoncallback',
+				data: {
+					app_key: '1271687855',
+					num: perPageCount,
+					page: curPage
+				}
+			}).done(function(ret){
+			 	//console.log(ret)
+			 	if(ret&&ret.status && ret.status.code == '0'){
+			 		callback && callback(ret.data)
+			 		curPage++
+			 	}else{
+			 		console.log('数据异常')
+			 	}	
+			}).fail(function(){
+				console.log('获取数据失败')
+			});
+		}
+
+
+		function createNode(item){
+			var tpl = `<li class="item">
+				<a href="#" class="link">
+					<img src="http://n2.sinaimg.cn/news/1_img/upload/8de453bf/101/w1500h1001/20181210/rYkv-hphsupy6547291.jpg" alt="">
+				</a>
+				<h4 class="title">细菌战幸存者</h4>
+				<p class="desp">
+					1941年11月4日，侵华日军731部队在常德投下36公斤携带鼠疫细菌的跳蚤，引发了长达两年，流传四年的细菌战，数万人染病，7643人丧生。77年过去了，幸存者及遗属仍在坚持控诉，要得是日本政府一个真正的道歉，虽然只剩下18人。
+				</p>
+			</li> `
+
+			var $node = $(tpl)
+			$node.find('a').attr('href',item.url)
+			$node.find('img').attr('src',item.img_url)
+			$node.find('h4').text(item.short_name)
+			$node.find('p').text(item.short_intro)
+
+			return $node 
+		}
+
+		function render(arr){
+			$.each(arr,function(index,item){
+				var $node = createNode(item)
+				$node.find('img').on('load',function(){
+					$('#pic-ct').append($node)
+					waterfallPlace($node)
+				})
+			})
+		}
+
+	
+		function waterfallPlace($item){
+			var ctMaxHeight = columnHeight[0]
+			var minHeight = columnHeight[0]
+			var minIndex = 0
+			for(var i=0;i<columnNum;i++){
+				if(columnHeight[i] < minHeight){
+					minHeight = columnHeight[i]
+					minIndex = i
+				}
+			}
+
+			$item.css({
+				left: minIndex * itemWidth,
+				top: minHeight
+			})
+
+			columnHeight[minIndex] += $item.outerHeight(true)
+
+			for(var i=0;i<columnNum;i++){
+				if(columnHeight[i] > ctMaxHeight){
+					ctMaxHeight = columnHeight[i]
+				}
+			}
+
+			$('#pic-ct').height(ctMaxHeight)
+			//console.log('ctMaxHeight: '+ctMaxHeight)
+		}
+
+
+	</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
